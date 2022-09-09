@@ -15,12 +15,13 @@ public class ServerRunner {
 
 
     @SneakyThrows
-    public void run(int port) {
+    public Object receiveRequest(int port) {
 
 
         ServerSocket ss = new ServerSocket(port);
+        Object request = null;
 
-        while (true) {
+
             var socket = ss.accept();
 
 
@@ -30,11 +31,11 @@ public class ServerRunner {
 
                 ){
 
-                    var request =  ois.readObject();
-                    oos.writeObject("response");
+                    request =  ois.readObject();
+                    oos.writeObject("CREATED");
                     oos.flush();
 
                 }
-        }
+        return request;
     }
 }

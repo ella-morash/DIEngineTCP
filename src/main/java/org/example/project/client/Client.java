@@ -2,9 +2,7 @@ package org.example.project.client;
 
 import lombok.SneakyThrows;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.net.Socket;
 
 public class Client {
@@ -25,6 +23,14 @@ public class Client {
                 ) {
 
             String request = null;
+
+            try(
+                    BufferedReader reader = new BufferedReader(new FileReader("request.json"))
+                    ) {
+
+                request = reader.lines().toString();
+
+            }
 
             socketOutput.writeObject(request);
             socketOutput.flush();
