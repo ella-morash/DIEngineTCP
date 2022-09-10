@@ -1,6 +1,7 @@
 package org.example.project.common.model;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,7 +13,8 @@ import lombok.NoArgsConstructor;
 @Builder
 public class User {
 
-    private Long id;
+    @JsonIgnore
+    private String id;
     private String firstName;
     private String lastName;
 }

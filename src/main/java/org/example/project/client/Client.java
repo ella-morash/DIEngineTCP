@@ -22,15 +22,9 @@ public class Client {
 
                 ) {
 
-            String request = null;
+            String request = "{\"firstName\":\"Alex\",\"lastName\":\"Turner\"}";
 
-            try(
-                    BufferedReader reader = new BufferedReader(new FileReader("request.json"))
-                    ) {
 
-                request = reader.lines().toString();
-
-            }
 
             socketOutput.writeObject(request);
             socketOutput.flush();

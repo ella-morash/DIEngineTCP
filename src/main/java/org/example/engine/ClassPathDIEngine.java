@@ -2,17 +2,13 @@ package org.example.engine;
 
 import lombok.SneakyThrows;
 import org.example.engine.annotations.Payload;
+import org.example.engine.annotations.Service;
 import org.example.engine.annotations.TcpRequestMapping;
 import org.example.engine.annotations.Value;
 import org.example.project.common.model.User;
 import org.reflections.Reflections;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.lang.reflect.InvocationTargetException;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -21,87 +17,68 @@ import java.util.Properties;
 public class ClassPathDIEngine {
 
     private final Map<Class<?>,Object> applicationContext = new HashMap<>();
-    private final Map<Class<?>,Integer> serverClassToPort = new HashMap<>();
+    private final Map<Object, Integer> serverClassToPort = new HashMap<>();
     private EngineObjectMapper engineObjectMapper = new EngineObjectMapper();
     private ServerRunner serverRunner = new ServerRunner();
+    private PropertiesReader propertiesReader = new PropertiesReader();
 
 
     public void start() {
 
         new Reflections("org.example.project")
-                .getMethodsAnnotatedWith(TcpRequestMapping.class)
-                .forEach(method -> {
-                            Class<?> methodClass = method.getClass();
-                            Object instance = null;
-                            try {
-                                instance= methodClass.getDeclaredConstructors()[0].newInstance();
-                            } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
-                                e.printStackTrace();
-                            }
-                            applicationContext.put(methodClass,instance);
+                .getTypesAnnotatedWith(Service.class)
 
-                            matchAnnotationValueToClass();
+                .forEach(service -> {
 
-                            var port = serverClassToPort.get(methodClass);
+                    Object instance = null;
 
-
-
-
-                    String request = null;
-                    ServerSocket ss = null;
                     try {
-                        ss = new ServerSocket(port);
-                    } catch (IOException e) {
+                        instance = service.getDeclaredConstructors()[0].newInstance();
+                    } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
                         e.printStackTrace();
                     }
 
-                    while (true) {
+                    applicationContext.put(service,instance);
 
+                    matchAnnotationValueToClass();
 
-                        try (
+                    var port = serverClassToPort.get(instance);
 
-                                Socket socket = ss.accept();
-                                ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
-                                ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
+                    String request =  (String)serverRunner.receiveRequest(port);
 
-                        ){
+                    Object finalInstance = instance;
 
-                            request =  (String)ois.readObject();
-                            oos.writeObject("CREATED");
-                            oos.flush();
+                    invokeMethod(service,finalInstance,request);
 
-                            var objectToSave =  engineObjectMapper.convert(request,User.class);
-
-                            var annotatedParameters  = Arrays.stream(method.getParameters())
-                                    .filter(parameter -> parameter.isAnnotationPresent(Payload.class))
-                                    .toList();
-
-                            if(!annotatedParameters.isEmpty()) {
-                                try {
-                                    method.invoke(instance,objectToSave);
-                                } catch (IllegalAccessException | InvocationTargetException e) {
-                                    e.printStackTrace();
-                                }
-                            }
-
-
-                        } catch (IOException | ClassNotFoundException e) {
-                            e.printStackTrace();
-                        }
-
-
-                    }
 
                 });
 
+
     }
 
-    @SneakyThrows
-    private String getProperties(String value) {
-        Properties properties = new Properties();
-        properties.load(TcpApplication.class.getClassLoader().getResourceAsStream("application.properties"));
-        return properties.getProperty(value);
+    private void invokeMethod(Class<?> service, Object finalInstance, String request) {
+
+        Arrays.stream(service.getDeclaredMethods())
+
+                .filter(method -> method.isAnnotationPresent(TcpRequestMapping.class)
+                        && Arrays.stream(method.getParameters())
+                        .anyMatch(parameter -> parameter.isAnnotationPresent(Payload.class)))
+
+                .forEach(method -> {
+
+                    var paramType = Arrays.stream(method.getParameterTypes())
+                           .findFirst().orElse(null);
+
+                    var objectToSave = engineObjectMapper.convert(request,paramType);
+
+                    try {
+                        method.invoke(finalInstance,objectToSave);
+                    } catch (IllegalAccessException | InvocationTargetException e) {
+                        e.printStackTrace();
+                    }
+              });
     }
+
 
     @SneakyThrows
     private void matchAnnotationValueToClass() {
@@ -112,15 +89,15 @@ public class ClassPathDIEngine {
                     Arrays.stream(classy.getKey().getDeclaredFields())
                             .filter(field -> field.isAnnotationPresent(Value.class))
                             .forEach(field -> {
-                                field.setAccessible(true);
+
                                 Value valueAnnotation = field.getAnnotation(Value.class);
 
-                                String dataFromProperties = getProperties(valueAnnotation.value());
+                                String dataFromProperties = propertiesReader.getProperties(valueAnnotation.value());
                                 if (dataFromProperties == null) {
                                     return;
                                 }
                                 Integer port = Integer.parseInt(dataFromProperties);
-                                serverClassToPort.put(field.getClass(),port);
+                                serverClassToPort.put(classy.getValue(),port);
 
 
                             });

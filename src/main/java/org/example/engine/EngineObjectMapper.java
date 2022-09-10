@@ -2,9 +2,7 @@ package org.example.engine;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.SneakyThrows;
-import org.example.project.common.model.User;
 
-import java.io.File;
 
 public class EngineObjectMapper {
 
