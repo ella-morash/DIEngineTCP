@@ -2,13 +2,12 @@ package org.example.project.client;
 
 import lombok.SneakyThrows;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.Socket;
-import java.nio.file.Files;
-import java.nio.file.Path;
 
-public class Client {
-
+public class Client1 {
     static final String SERVER_HOST = "localhost";
     static final int PORT = 8080;
 
@@ -18,20 +17,19 @@ public class Client {
 
         Socket socket = new Socket(SERVER_HOST, PORT);
 
-        try(
+        try (
                 ObjectInputStream socketInput = new ObjectInputStream(socket.getInputStream());
                 ObjectOutputStream socketOutput = new ObjectOutputStream(socket.getOutputStream());
 
-                ) {
+        ) {
 
-            String request = new String(Files.readAllBytes(Path.of("request.json")));
+            String request = "{\"firstName\":\"Alex\",\"lastName\":\"Turner\"}";
+
 
             socketOutput.writeObject(request);
             socketOutput.flush();
             var response = socketInput.readObject();
 
         }
-
-
     }
 }

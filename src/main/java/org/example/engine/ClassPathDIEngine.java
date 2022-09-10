@@ -5,14 +5,14 @@ import org.example.engine.annotations.Payload;
 import org.example.engine.annotations.Service;
 import org.example.engine.annotations.TcpRequestMapping;
 import org.example.engine.annotations.Value;
-import org.example.project.common.model.User;
+
 import org.reflections.Reflections;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Properties;
+
 
 public class ClassPathDIEngine {
 
@@ -23,7 +23,7 @@ public class ClassPathDIEngine {
     private PropertiesReader propertiesReader = new PropertiesReader();
 
 
-    public void start() {
+    public synchronized void start() {
 
         new Reflections("org.example.project")
                 .getTypesAnnotatedWith(Service.class)
