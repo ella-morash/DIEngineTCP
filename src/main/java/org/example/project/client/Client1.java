@@ -23,7 +23,7 @@ public class Client1 {
 
         ) {
 
-            String request = "{\"firstName\":\"Alex\",\"lastName\":\"Turner\"}";
+            String request = "{\"firstName\":\"Olga\",\"lastName\":\"Chromova\"}";
 
 
             socketOutput.writeObject(request);

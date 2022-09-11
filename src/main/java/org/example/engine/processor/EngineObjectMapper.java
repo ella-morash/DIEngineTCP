@@ -1,4 +1,4 @@
-package org.example.engine;
+package org.example.engine.processor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.SneakyThrows;

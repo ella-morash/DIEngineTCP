@@ -1,4 +1,4 @@
-package org.example.engine;
+package org.example.engine.processor;
 
 import lombok.SneakyThrows;
 import org.example.engine.annotations.Payload;
@@ -8,7 +8,12 @@ import org.example.engine.annotations.Value;
 
 import org.reflections.Reflections;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.lang.reflect.InvocationTargetException;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -17,10 +22,10 @@ import java.util.Map;
 public class ClassPathDIEngine {
 
     private final Map<Class<?>,Object> applicationContext = new HashMap<>();
-    private final Map<Object, Integer> serverClassToPort = new HashMap<>();
-    private EngineObjectMapper engineObjectMapper = new EngineObjectMapper();
-    private ServerRunner serverRunner = new ServerRunner();
-    private PropertiesReader propertiesReader = new PropertiesReader();
+    private final Map<Object, Integer> serverInstanceToPort = new HashMap<>();
+
+
+
 
 
     public synchronized void start() {
@@ -42,13 +47,37 @@ public class ClassPathDIEngine {
 
                     matchAnnotationValueToClass();
 
-                    var port = serverClassToPort.get(instance);
+                    var port = serverInstanceToPort.get(instance);
 
-                    String request =  (String)serverRunner.receiveRequest(port);
 
-                    Object finalInstance = instance;
+                    ServerSocket ss = null;
+                    try {
+                        ss = new ServerSocket(port);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    String request = null;
 
-                    invokeMethod(service,finalInstance,request);
+                    while (true) {
+
+                        try (
+                                Socket socket = ss.accept();
+                                ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+                                ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
+
+                        ){
+
+                            request = (String) ois.readObject();
+                            oos.writeObject("CREATED");
+                            oos.flush();
+
+                        } catch (IOException | ClassNotFoundException e) {
+                            e.printStackTrace();
+                        }
+
+                        invokeMethod(service, instance,request);
+
+                    }
 
 
                 });
@@ -57,6 +86,8 @@ public class ClassPathDIEngine {
     }
 
     private void invokeMethod(Class<?> service, Object finalInstance, String request) {
+
+        EngineObjectMapper engineObjectMapper = new EngineObjectMapper();
 
         Arrays.stream(service.getDeclaredMethods())
 
@@ -83,6 +114,7 @@ public class ClassPathDIEngine {
     @SneakyThrows
     private void matchAnnotationValueToClass() {
 
+        PropertiesReader propertiesReader = new PropertiesReader();
         applicationContext.entrySet()
                 .forEach(classy -> {
 
@@ -97,7 +129,7 @@ public class ClassPathDIEngine {
                                     return;
                                 }
                                 Integer port = Integer.parseInt(dataFromProperties);
-                                serverClassToPort.put(classy.getValue(),port);
+                                serverInstanceToPort.put(classy.getValue(),port);
 
 
                             });
